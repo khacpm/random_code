@@ -1,6 +1,4 @@
-# Project Title
-
-One Paragraph of project description goes here
+# Add enchant rate to Lab
 
 ## Getting Started
 
@@ -8,32 +6,84 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
+What things you need to edit is just 2 files
 
 ```
-Give examples
+InfoGenDlg
+CityLab
 ```
 
-### Installing
-
-A step by step series of examples that tell you have to get a development env running
-
-Say what the step will be
+### Step 1 - Generate omi.tex with enchant rate
+Open InfoGenDlg, find OnButtonIgAll function
+Put below code under ItemInfo block
 
 ```
-Give the example
+	//enchant info
+	dbType = DB_ENCHANT_INFO;
+	ez_map<INT, ENCHANT_INFO> mapEnchantInfo;
+	nObjects = CAtumDBHelper::LoadEnchantInfo(&odbcStmt, &mapEnchantInfo);
+	if (0 >= nObjects)
+	{
+		MessageBox("LoadEnchantInfo error from DB!!, Please check DB Schema.");
+		return;
+	}
+	nObjects = mapEnchantInfo.size();
+	WriteFile(hFile, (LPCVOID)&dbType, sizeof(DB_TYPE), &dwBytesWritten, NULL);
+	WriteFile(hFile, (LPCVOID)&nObjects, sizeof(int), &dwBytesWritten, NULL);
+	ez_map<INT, ENCHANT_INFO>::iterator itrEnchantInfo = mapEnchantInfo.begin();
+	const int sizeOfEnchant_INFO = sizeof(ENCHANT_INFO);
+	while (itrEnchantInfo != mapEnchantInfo.end())
+	{
+		ENCHANT_INFO *cell = &itrEnchantInfo->second;
+		WriteFile(hFile, (LPCVOID)&cell, sizeOfEnchant_INFO, &dwBytesWritten, NULL);
+		itrEnchantInfo++;
+	}
 ```
 
-And repeat
+Add new Element to enums DB_TYPE (AtumParam)
 
 ```
-until finished
+DB_ENCHANT_INFO
 ```
 
-End with an example of getting some data out of the system or using it for a little demo
+## Step 2 - Load omit.text with enchant rate to Memory
 
-## Running the tests
+Open AtumDatabase
+Modify InitDeviceObjects function
+Add below code into “switch (header.nType)” block
 
+```
+	case DB_ENCHANT_INFO:
+	{
+		if (!LoadEnchantData(fd, header.nDataCount))
+		{
+			DBGOUT("Data File Read Error(omi.tex : DB_ITEM)\n");
+			return;
+		}
+	}
+	break;
+```
+
+Add new Function into AtumDatabase 
+
+```
+BOOL CAtumDatabase::LoadEnchantData(FILE* fd, int nCount)
+{
+	ASSERT_ASSERT(fd);
+	const int sizeOfENCHANT_INFO = sizeof(ENCHANT_INFO);
+	for (int i = 0; i < nCount; i++)
+	{
+		ENCHANT_INFO * cell = new ENCHANT_INFO;
+		if (fread(cell, sizeOfENCHANT_INFO, 1, fd) == 0)
+			return FALSE;
+		m_mapEnchantInfoTemp[cell->EnchantItemNum] = cell;
+	}
+	return TRUE;
+}
+```
+
+
+			
 Explain how to run the automated tests for this system
 
 ### Break down into end to end tests
